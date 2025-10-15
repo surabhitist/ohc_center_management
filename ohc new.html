@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OHC Center Management</title>
+  <!-- XLSX for Excel import/export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; min-height: 100vh; }
+    .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 15px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+    .header h1 { font-size: 2em; margin-bottom: 5px; }
+    .tabs { display: flex; background: #f5f5f5; border-bottom: 2px solid #ddd; }
+    .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; background: #f5f5f5; border: none; font-size: 16px; font-weight: 600; transition: all 0.3s; }
+    .tab:hover { background: #e0e0e0; }
+    .tab.active { background: white; color: #667eea; border-bottom: 3px solid #667eea; }
+    .tab-content { display: none; padding: 30px; }
+    .tab-content.active { display: block; }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 20px; }
+    .form-group { display: flex; flex-direction: column; }
+    .form-group label { margin-bottom: 5px; font-weight: 600; color: #333; }
+    .form-group input, .form-group select, .form-group textarea { padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px; transition: border-color 0.3s; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #667eea; }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .btn { padding: 12px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.3s; margin: 5px; }
+    .btn-primary { background: #667eea; color: white; } .btn-primary:hover { background: #5568d3; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3); }
+    .btn-success { background: #10b981; color: white; } .btn-success:hover { background: #059669; transform: translateY(-2px); }
+    .btn-danger { background: #ef4444; color: white; } .btn-danger:hover { background: #dc2626; transform: translateY(-2px); }
+    .btn-warning { background: #f59e0b; color: white; } .btn-warning:hover { background: #d97706; }
+    .btn-secondary { background: #6b7280; color: white; } .btn-secondary:hover { background: #4b5563; }
+    .button-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+    .table-container { overflow-x: auto; margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; background: white; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+    th { background: #667eea; color: white; font-weight: 600; position: sticky; top: 0; }
+    tr:hover { background: #f9fafb; }
+    .action-buttons { display: flex; gap: 5px; }
+    .action-btn { padding: 5px 10px; font-size: 12px; }
+    .master-section { background: #f9fafb; padding: 20px; border-radius: 10px; margin-bottom: 30px; }
+    .master-section h3 { color: #667eea; margin-bottom: 15px; }
+    .master-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+    .master-item { background: white; padding: 8px 15px; border-radius: 20px; border: 2px solid #667eea; display: flex; align-items: center; gap: 10px; }
+    .master-item button { background: #ef4444; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 12px; }
+    .alert { padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+    .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #10b981; }
+    .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #ef4444; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🏥 OHC Center Management System</h1>
+      <p>Occupational Health Center - Patient Records</p>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('entry', event)">Patient Entry</button>
+      <button class="tab" onclick="showTab('records', event)">View Records</button>
+      <button class="tab" onclick="showTab('master', event)">Master Data</button>
+      <button class="tab" onclick="showTab('export', event)">Export</button>
+    </div>
+
+    <!-- Patient Entry Tab -->
+    <div id="entry" class="tab-content active">
+      <h2>New Patient Entry</h2>
+      <div id="entryAlert"></div>
+      <form id="patientForm">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Date *</label>
+            <input type="date" id="date" required>
+          </div>
+          <div class="form-group">
+            <label>Time *</label>
+            <input type="time" id="time" required>
+          </div>
+          <div class="form-group">
+            <label>Employee Name *</label>
+            <input type="text" id="empName" list="empNameList" required>
+            <datalist id="empNameList"></datalist>
+          </div>
+          <div class="form-group">
+            <label>Gender *</label>
+            <select id="gender" required>
+              <option value="">Select Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Employee ID *</label>
+            <input type="text" id="empId" required>
+          </div>
+          <div class="form-group">
+            <label>Plant *</label>
+            <input type="text" id="plant" list="plantList" required>
+            <datalist id="plantList"></datalist>
+          </div>
+          <div class="form-group">
+            <label>Department *</label>
+            <input type="text" id="department" list="deptList" required>
+            <datalist id="deptList"></datalist>
+          </div>
+          <div class="form-group">
+            <label>Contract *</label>
+            <input type="text" id="contract" list="contractList" required>
+            <datalist id="contractList"></datalist>
+          </div>
+          <div class="form-group">
+            <label>Designation *</label>
+            <input type="text" id="designation" required>
+          </div>
+          <div class="form-group">
+            <label>Medical Condition *</label>
+            <input type="text" id="medCondition" list="conditionList" required>
+            <datalist id="conditionList"></datalist>
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Treatment Given *</label>
+            <textarea id="treatment" required></textarea>
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Remarks</label>
+            <textarea id="remarks"></textarea>
+          </div>
+        </div>
+        <div class="button-group">
+          <button type="submit" class="btn btn-primary" id="addUpdateBtn">Add Record</button>
+          <button type="button" class="btn btn-secondary" onclick="resetForm()">Clear Form</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- View Records Tab -->
+    <div id="records" class="tab-content">
+      <h2>Patient Records</h2>
+      <div class="table-container">
+        <table id="recordsTable">
+          <thead>
+          <tr>
+            <th>Sl No</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Employee Name</th>
+            <th>Gender</th>
+            <th>Employee ID</th>
+            <th>Plant</th>
+            <th>Department</th>
+            <th>Contract</th>
+            <th>Designation</th>
+            <th>Medical Condition</th>
+            <th>Treatment Given</th>
+            <th>Remarks</th>
+            <th>Actions</th>
+          </tr>
+          </thead>
+          <tbody id="recordsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Master Data Tab -->
+    <div id="master" class="tab-content">
+      <h2>Master Data Management</h2>
+
+      <div class="master-section">
+        <h3>Employee Master</h3>
+        <p style="margin-bottom: 15px;">Total Employees: <strong id="empCount">0</strong></p>
+        <div class="button-group" style="margin-bottom: 15px;">
+          <button class="btn btn-primary" onclick="document.getElementById('excelFileInput').click()">📤 Import from Excel</button>
+          <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display: none;">
+          <button class="btn btn-success" onclick="exportEmployeeMaster()">📥 Export Employee Master</button>
+          <button class="btn btn-warning" onclick="downloadSampleExcel()">📄 Download Sample Format</button>
+          <button class="btn btn-danger" onclick="clearAllEmployees()">🗑️ Clear All Employees</button>
+        </div>
+        <div style="background: #fff3cd; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 14px;">
+          <strong>Excel Format:</strong> Columns should be: EmployeeCode, EmployeeName, Department, Designation, Gender, Plant (optional), Contract (optional)
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label>Employee Name</label><input type="text" id="masterEmpName"></div>
+          <div class="form-group"><label>Employee ID</label><input type="text" id="masterEmpId"></div>
+          <div class="form-group"><label>Designation</label><input type="text" id="masterDesignation"></div>
+          <div class="form-group">
+            <label>Gender</label>
+            <select id="masterGender"><option value="">Select Gender</option><option>Male</option><option>Female</option><option>Other</option></select>
+          </div>
+          <div class="form-group"><label>Plant</label><input type="text" id="masterPlant"></div>
+          <div class="form-group"><label>Department</label><input type="text" id="masterDept"></div>
+          <div class="form-group"><label>Contract</label><input type="text" id="masterContract"></div>
+        </div>
+        <button class="btn btn-success" onclick="addEmployee()">Add Employee</button>
+        <div class="master-list" id="employeeList"></div>
+      </div>
+
+      <div class="master-section">
+        <h3>Medical Conditions</h3>
+        <div class="form-grid" style="grid-template-columns: 1fr auto;">
+          <input type="text" id="newCondition" placeholder="Enter medical condition">
+          <button class="btn btn-success" onclick="addMasterData('condition')">Add</button>
+        </div>
+        <div class="master-list" id="conditionsList"></div>
+      </div>
+    </div>
+
+    <!-- Export Tab -->
+    <div id="export" class="tab-content">
+      <h2>Export Data</h2>
+      <p>Export all patient records to Excel format</p>
+      <div class="button-group">
+        <button class="btn btn-primary" onclick="exportToExcel()">📊 Export to Excel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- === FIREBASE (no auth) === -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+    import {
+      getFirestore, collection, doc, getDocs, setDoc, addDoc, deleteDoc,
+      onSnapshot, query, orderBy, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+    apiKey: "AIzaSyAYGrIo0PDtgOcoO44WOVrDIDHontaPbi0",
+    authDomain: "ohc-new.firebaseapp.com",
+    projectId: "ohc-new",
+    storageBucket: "ohc-new.firebasestorage.app",
+    messagingSenderId: "602082394913",
+    appId: "1:602082394913:web:446d573fccaca19b48f460"
+  };
+
+    // ----------------------------------------
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // ======= State =======
+    let employees = [];    // [{id,name,department,designation,gender,plant,contract}]
+    let records = [];      // patient records
+    let conditions = [];   // strings
+    let editingIndex = -1; // record being edited
+
+    // ======= Tabs / UI helpers =======
+    function showTab(tabName, ev) {
+      const contents = document.getElementsByClassName('tab-content');
+      for (let i=0; i<contents.length; i++) contents[i].classList.remove('active');
+      const tabs = document.getElementsByClassName('tab');
+      for (let i=0; i<tabs.length; i++) tabs[i].classList.remove('active');
+      document.getElementById(tabName).classList.add('active');
+      if (ev && ev.target) ev.target.classList.add('active');
+    }
+    window.showTab = showTab;
+
+    function setCurrentDateTime() {
+      const now = new Date();
+      document.getElementById('date').valueAsDate = now;
+      document.getElementById('time').value = now.toTimeString().slice(0,5);
+    }
+    function showAlert(message, type) {
+      const alertDiv = document.getElementById('entryAlert');
+      alertDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+      setTimeout(() => alertDiv.innerHTML = '', 3000);
+    }
+    function resetForm() {
+      document.getElementById('patientForm').reset();
+      document.getElementById('designation').value = '';
+      editingIndex = -1;
+      document.getElementById('addUpdateBtn').textContent = 'Add Record';
+      setCurrentDateTime();
+    }
+    window.resetForm = resetForm;
+
+    // ======= Renderers =======
+    function renderRecords() {
+      const tbody = document.getElementById('recordsBody');
+      tbody.innerHTML = records.map((rec, idx) => `
+        <tr>
+          <td>${idx + 1}</td>
+          <td>${rec.date || ''}</td>
+          <td>${rec.time || ''}</td>
+          <td>${rec.empName || ''}</td>
+          <td>${rec.gender || ''}</td>
+          <td>${rec.empId || ''}</td>
+          <td>${rec.plant || ''}</td>
+          <td>${rec.department || ''}</td>
+          <td>${rec.contract || ''}</td>
+          <td>${rec.designation || ''}</td>
+          <td>${rec.medCondition || ''}</td>
+          <td>${rec.treatment || ''}</td>
+          <td>${rec.remarks || ''}</td>
+          <td class="action-buttons">
+            <button class="btn btn-warning action-btn" onclick="editRecord(${idx})">Edit</button>
+            <button class="btn btn-danger action-btn" onclick="deleteRecord(${idx})">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function renderMasterData() {
+      const empList = document.getElementById('employeeList');
+      const empCount = document.getElementById('empCount');
+      if (empCount) empCount.textContent = employees.length;
+
+      empList.innerHTML = employees.slice(0, 50).map((emp, idx) => `
+        <div class="master-item">
+          <strong>${emp.name}</strong> (${emp.id}) - ${emp.designation || ''}
+          <button onclick="deleteEmployee(${idx})">×</button>
+        </div>
+      `).join('');
+      if (employees.length > 50) {
+        empList.innerHTML += `<div class="master-item" style="border: none; background: #f0f0f0;">
+          ... and ${employees.length - 50} more employees
+        </div>`;
+      }
+
+      document.getElementById('empNameList').innerHTML =
+        employees.map(e => `<option value="${e.name}">`).join('');
+      document.getElementById('plantList').innerHTML =
+        [...new Set(employees.map(e => e.plant).filter(Boolean))].map(p => `<option value="${p}">`).join('');
+      document.getElementById('deptList').innerHTML =
+        [...new Set(employees.map(e => e.department).filter(Boolean))].map(d => `<option value="${d}">`).join('');
+      document.getElementById('contractList').innerHTML =
+        [...new Set(employees.map(e => e.contract).filter(Boolean))].map(c => `<option value="${c}">`).join('');
+
+      const condList = document.getElementById('conditionsList');
+      condList.innerHTML = conditions.map((cond, idx) => `
+        <div class="master-item">
+          ${cond}
+          <button onclick="deleteCondition(${idx})">×</button>
+        </div>
+      `).join('');
+      document.getElementById('conditionList').innerHTML = conditions.map(c => `<option value="${c}">`).join('');
+    }
+
+    // ======= Autofill (name or id) =======
+    function setupAutoComplete() {
+      const empNameInput = document.getElementById('empName');
+      const empIdInput = document.getElementById('empId');
+
+      function fillFromEmployee(emp) {
+        if (!emp) return;
+        document.getElementById('empId').value = emp.id || '';
+        document.getElementById('designation').value = emp.designation || '';
+        document.getElementById('gender').value = emp.gender || '';
+        document.getElementById('plant').value = emp.plant || '';
+        document.getElementById('department').value = emp.department || '';
+        document.getElementById('contract').value = emp.contract || '';
+      }
+
+      empNameInput.addEventListener('input', function() {
+        const name = this.value.trim().toLowerCase();
+        const emp = employees.find(e => (e.name || '').toLowerCase() === name);
+        fillFromEmployee(emp);
+      });
+      empIdInput.addEventListener('input', function() {
+        const id = this.value.trim();
+        const emp = employees.find(e => (e.id || '') === id);
+        fillFromEmployee(emp);
+      });
+    }
+
+    // ======= Firestore live listeners =======
+    onSnapshot(collection(db, "employees"), (snap) => {
+      employees = snap.docs.map(d => ({ _docId: d.id, ...d.data() }));
+      renderMasterData();
+      setupAutoComplete();
+    });
+
+    onSnapshot(query(collection(db, "records")), (snap) => {
+      records = snap.docs.map(d => ({ _docId: d.id, ...d.data() }));
+      // newest first if createdAt exists
+      records.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      renderRecords();
+    });
+
+    onSnapshot(collection(db, "conditions"), (snap) => {
+      const arr = snap.docs.map(d => d.data()?.value).filter(Boolean);
+      if (arr.length === 0) {
+        // seed defaults once (no auth; may run multiple times if emptied)
+        ['Fever','Headache','Injury','Cold & Cough','Body Pain','Stomach Ache']
+          .forEach(async v => await addDoc(collection(db, 'conditions'), {value: v}));
+        return;
+      }
+      conditions = arr;
+      renderMasterData();
+    });
+
+    // ======= Employee master writes =======
+    window.addEmployee = async function addEmployee() {
+      const name = document.getElementById('masterEmpName').value.trim();
+      const id = document.getElementById('masterEmpId').value.trim();
+      const designation = document.getElementById('masterDesignation').value.trim();
+      const gender = document.getElementById('masterGender').value;
+      const plant = document.getElementById('masterPlant').value.trim();
+      const department = document.getElementById('masterDept').value.trim();
+      const contract = document.getElementById('masterContract').value.trim();
+
+      if (!name || !id || !designation || !gender || !plant || !department || !contract) {
+        alert('Please fill all employee fields');
+        return;
+      }
+      await setDoc(doc(db, "employees", id), { id, name, designation, gender, plant, department, contract });
+      document.getElementById('masterEmpName').value = '';
+      document.getElementById('masterEmpId').value = '';
+      document.getElementById('masterDesignation').value = '';
+      document.getElementById('masterGender').value = '';
+      document.getElementById('masterPlant').value = '';
+      document.getElementById('masterDept').value = '';
+      document.getElementById('masterContract').value = '';
+    };
+
+    window.deleteEmployee = async function deleteEmployee(idx) {
+      const emp = employees[idx];
+      if (!emp) return;
+      if (!confirm(`Delete ${emp.name} (${emp.id}) from master data?`)) return;
+      await deleteDoc(doc(db, "employees", emp.id || emp._docId));
+    };
+
+    window.clearAllEmployees = async function clearAllEmployees() {
+      if (!confirm('This will delete ALL employees. Continue?')) return;
+      const snap = await getDocs(collection(db, "employees"));
+      for (const d of snap.docs) await deleteDoc(d.ref);
+      alert('All employee records have been cleared.');
+    };
+
+    // ======= Conditions writes =======
+    window.addMasterData = async function addMasterData(type) {
+      if (type !== 'condition') return;
+      const value = document.getElementById('newCondition').value.trim();
+      if (!value) return;
+      if (conditions.map(c => c.toLowerCase()).includes(value.toLowerCase())) {
+        document.getElementById('newCondition').value = '';
+        return;
+      }
+      await addDoc(collection(db, "conditions"), { value });
+      document.getElementById('newCondition').value = '';
+    };
+
+    window.deleteCondition = async function deleteCondition(idx) {
+      const name = conditions[idx];
+      if (!name) return;
+      if (!confirm('Delete this condition?')) return;
+      const snap = await getDocs(collection(db,"conditions"));
+      const targets = snap.docs.filter(d => d.data()?.value === name);
+      for (const d of targets) await deleteDoc(d.ref);
+    };
+
+    // ======= Patient records (add/update/delete) =======
+    function getRecordFromForm() {
+      return {
+        date: document.getElementById('date').value,
+        time: document.getElementById('time').value,
+        empName: document.getElementById('empName').value,
+        gender: document.getElementById('gender').value,
+        empId: document.getElementById('empId').value,
+        plant: document.getElementById('plant').value,
+        department: document.getElementById('department').value,
+        contract: document.getElementById('contract').value,
+        designation: document.getElementById('designation').value,
+        medCondition: document.getElementById('medCondition').value,
+        treatment: document.getElementById('treatment').value,
+        remarks: document.getElementById('remarks').value
+      };
+    }
+
+    document.getElementById('patientForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const rec = getRecordFromForm();
+      if (editingIndex >= 0 && records[editingIndex]?._docId) {
+        const id = records[editingIndex]._docId;
+        await setDoc(doc(db, "records", id), rec, { merge: true });
+        editingIndex = -1;
+        document.getElementById('addUpdateBtn').textContent = 'Add Record';
+        showAlert('Record updated successfully!', 'success');
+      } else {
+        await addDoc(collection(db, "records"), { ...rec, createdAt: serverTimestamp() });
+        showAlert('Record added successfully!', 'success');
+      }
+      resetForm();
+    });
+
+    window.editRecord = function editRecord(idx) {
+      const rec = records[idx];
+      if (!rec) return;
+      document.getElementById('date').value = rec.date || '';
+      document.getElementById('time').value = rec.time || '';
+      document.getElementById('empName').value = rec.empName || '';
+      document.getElementById('gender').value = rec.gender || '';
+      document.getElementById('empId').value = rec.empId || '';
+      document.getElementById('plant').value = rec.plant || '';
+      document.getElementById('department').value = rec.department || '';
+      document.getElementById('contract').value = rec.contract || '';
+      document.getElementById('designation').value = rec.designation || '';
+      document.getElementById('medCondition').value = rec.medCondition || '';
+      document.getElementById('treatment').value = rec.treatment || '';
+      document.getElementById('remarks').value = rec.remarks || '';
+      editingIndex = idx;
+      document.getElementById('addUpdateBtn').textContent = 'Update Record';
+      showTab('entry');
+      window.scrollTo(0,0);
+    };
+
+    window.deleteRecord = async function deleteRecord(idx) {
+      const rec = records[idx];
+      if (!rec) return;
+      if (!confirm('Are you sure you want to delete this record?')) return;
+      await deleteDoc(doc(db, "records", rec._docId));
+    };
+
+    // ======= Import/Export with Firestore =======
+    document.getElementById('excelFileInput').addEventListener('change', importFromExcel);
+
+    async function importFromExcel(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+          if (jsonData.length === 0) { alert('No data found in Excel file!'); return; }
+
+          const importedEmployees = jsonData.map(row => ({
+            id: (row.EmployeeCode || row.EmployeeID || row.ID || row['Employee Code'] || '').toString().trim(),
+            name: (row.EmployeeName || row.Name || row['Employee Name'] || '').toString().trim(),
+            department: (row.Department || row.Dept || '').toString().trim(),
+            designation: (row.Designation || row.Position || '').toString().trim(),
+            gender: (row.Gender || 'Male').toString().trim(),
+            plant: (row.Plant || 'Main Plant').toString().trim(),
+            contract: (row.Contract || 'Permanent').toString().trim()
+          })).filter(emp => emp.id && emp.name);
+
+          if (importedEmployees.length === 0) { alert('No valid employee data found!'); return; }
+
+          if (employees.length > 0) {
+            const ok = confirm(`Found ${importedEmployees.length} employees in Excel. This will REPLACE your current ${employees.length} employees. Continue?`);
+            if (!ok) return;
+            const snap = await getDocs(collection(db, "employees"));
+            for (const d of snap.docs) await deleteDoc(d.ref);
+          }
+
+          for (const emp of importedEmployees) {
+            await setDoc(doc(db, "employees", emp.id), emp);
+          }
+
+          alert(`Successfully imported ${importedEmployees.length} employees!`);
+          event.target.value = '';
+        } catch (err) {
+          alert('Error reading Excel file: ' + err.message);
+          console.error(err);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    async function exportEmployeeMaster() {
+      const snap = await getDocs(collection(db, "employees"));
+      const emps = snap.docs.map(d => d.data());
+      if (emps.length === 0) { alert('No employees to export!'); return; }
+      const data = emps.map(emp => ({
+        'EmployeeCode': emp.id,
+        'EmployeeName': emp.name,
+        'Department': emp.department,
+        'Designation': emp.designation,
+        'Gender': emp.gender,
+        'Plant': emp.plant,
+        'Contract': emp.contract
+      }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Employee Master');
+      const date = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `Employee_Master_${date}.xlsx`);
+    }
+    window.exportEmployeeMaster = exportEmployeeMaster;
+
+    function downloadSampleExcel() {
+      const sampleData = [
+        { 'EmployeeCode': 'EMP001', 'EmployeeName': 'John Doe', 'Department': 'HR & Admin', 'Designation': 'Manager', 'Gender': 'Male', 'Plant': 'Main Plant', 'Contract': 'Permanent' },
+        { 'EmployeeCode': 'EMP002', 'EmployeeName': 'Jane Smith','Department': 'Quality', 'Designation': 'Supervisor', 'Gender': 'Female','Plant': 'Main Plant','Contract': 'Contract' },
+        { 'EmployeeCode': 'EMP003', 'EmployeeName': 'Bob Johnson','Department': 'I.S.Production','Designation': 'Operator','Gender': 'Male','Plant': 'Plant 2','Contract': 'Permanent' }
+      ];
+      const ws = XLSX.utils.json_to_sheet(sampleData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Employee Master');
+      XLSX.writeFile(wb, 'Employee_Master_Sample.xlsx');
+      alert('Sample Excel file downloaded! Use this format to import your employee data.');
+    }
+    window.downloadSampleExcel = downloadSampleExcel;
+
+    async function exportToExcel() {
+      const snap = await getDocs(collection(db, "records"));
+      const recs = snap.docs.map((d,i) => ({ idx: i+1, ...d.data() }));
+      if (recs.length === 0) { alert('No records to export!'); return; }
+      const data = recs.map((rec) => ({
+        'Sl No': rec.idx,
+        'Date': rec.date || '',
+        'Time': rec.time || '',
+        'Employee Name': rec.empName || '',
+        'Gender': rec.gender || '',
+        'Employee ID': rec.empId || '',
+        'Plant': rec.plant || '',
+        'Department': rec.department || '',
+        'Contract': rec.contract || '',
+        'Designation': rec.designation || '',
+        'Medical Condition': rec.medCondition || '',
+        'Treatment Given': rec.treatment || '',
+        'Remarks': rec.remarks || ''
+      }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'OHC Records');
+      const date = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `OHC_Records_${date}.xlsx`);
+    }
+    window.exportToExcel = exportToExcel;
+
+    // ======= On load =======
+    window.addEventListener('load', () => {
+      setCurrentDateTime();
+      setupAutoComplete();
+    });
+  </script>
+</body>
+</html>
